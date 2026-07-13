@@ -17,7 +17,9 @@ import {
   RotateCcw,
   GitPullRequest,
   ArrowDownLeft,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Percent,
+  Inbox
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -25,33 +27,36 @@ import { User, InventoryMaterial } from './types';
 import { api } from './lib/api';
 
 // Page imports
-import { Dashboard } from './pages/dashboard/Dashboard';
-import { POS } from './pages/cashier/POS';
-import { StockRequestPage } from './pages/cashier/StockRequestPage';
-import { Inventory } from './pages/gudang/Inventory';
-import { BeliVendor } from './pages/gudang/BeliVendor';
-import { CashFlow } from './pages/shared/CashFlow';
-import { HistoryPage } from './pages/admin/HistoryPage';
-import { RegisterHistory } from './pages/admin/RegisterHistory';
-import { DiscountsAdmin } from './pages/admin/DiscountsAdmin';
-import { ReceiptSettingsAdmin } from './pages/admin/ReceiptSettingsAdmin';
-import { UsersAdmin } from './pages/admin/UsersAdmin';
-import { AuthScreen } from './pages/auth/AuthScreen';
-import { TransferOut } from './pages/cashier/TransferOut';
+import {
+  Dashboard,
+  POS,
+  StockRequestPage,
+  Inventory,
+  BeliVendor,
+  CashFlow,
+  HistoryPage,
+  RegisterHistory,
+  DiscountsAdmin,
+  ReceiptSettingsAdmin,
+  UsersAdmin,
+  AuthScreen,
+  TransferOut
+} from './pages';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
-  <button
+  <motion.button
+    whileTap={{ scale: 0.97 }}
     onClick={onClick}
     className={cn(
-      "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 text-left",
+      "flex items-center gap-3.5 w-full py-3.5 pr-4 pl-3.5 border-l-[3.5px] transition-all duration-200 text-left select-none cursor-pointer",
       active
-        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200"
-        : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+        ? "bg-violet-50 text-violet-700 border-violet-600 font-bold rounded-r-2xl rounded-l-none"
+        : "text-slate-500 hover:bg-slate-50/60 hover:text-slate-800 border-transparent rounded-r-2xl rounded-l-none"
     )}
   >
-    <Icon size={20} />
-    <span className="font-medium">{label}</span>
-  </button>
+    <Icon size={20} strokeWidth={active ? 2.5 : 2} className={cn("transition-colors", active ? "text-violet-600" : "text-slate-400")} />
+    <span className="text-[14px] font-medium tracking-wide">{label}</span>
+  </motion.button>
 );
 
 export default function App() {
@@ -60,7 +65,12 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
   const [activeRegister, setActiveRegister] = useState<any>(null);
 
   // Lifted inventory state for gudang/admin
@@ -188,70 +198,92 @@ export default function App() {
           x: isSidebarOpen ? 0 : -280
         }}
         className={cn(
-          "bg-white border-r border-slate-100 flex flex-col overflow-hidden z-50 transition-all duration-300",
+          "bg-white border-r border-slate-100 flex flex-col z-50 transition-all duration-300 h-full",
           "fixed inset-y-0 left-0 lg:relative"
         )}
       >
-        <div className="p-8">
-          <div className="flex items-center justify-between mb-10">
+        {/* Sidebar Header */}
+        <div className="p-6 flex-shrink-0">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+              <div className="w-10 h-10 bg-violet-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-violet-100 animate-pulse-slow">
                 <TrendingUp size={20} />
               </div>
-              <h2 className="text-xl font-black tracking-tight">@HDPOS</h2>
+              <h2 className="text-xl font-black tracking-tight text-slate-800">@HDPOS</h2>
             </div>
-            <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 text-slate-400">
+            <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
               <X size={20} />
             </button>
           </div>
+        </div>
 
-          <nav className="space-y-2">
+        {/* Scrollable Navigation Area */}
+        <div className="flex-1 overflow-y-auto pr-1 pl-0 py-2 space-y-6 no-scrollbar">
+          {/* Category: Menu Utama */}
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-4.5 mb-2">Menu Utama</p>
             <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
             {user.role === 'cashier' && (
               <SidebarItem icon={ShoppingCart} label="Kasir" active={activeTab === 'pos'} onClick={() => { setActiveTab('pos'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
             )}
+          </div>
 
-            <SidebarItem icon={Package} label={user.role === 'admin' ? "Produk" : "Produk"} active={activeTab === 'inventory'} onClick={() => { setActiveTab('inventory'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+          {/* Category: Manajemen Produk */}
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-4.5 mb-2">Manajemen Produk</p>
+            <SidebarItem icon={Package} label="Produk" active={activeTab === 'inventory'} onClick={() => { setActiveTab('inventory'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
             {user.role === 'cashier' && (
-              <SidebarItem icon={GitPullRequest} label="Outlet Request" active={activeTab === 'outlet_request'} onClick={() => { setActiveTab('outlet_request'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+              <>
+                <SidebarItem icon={GitPullRequest} label="Outlet Request" active={activeTab === 'outlet_request'} onClick={() => { setActiveTab('outlet_request'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+                <SidebarItem icon={ArrowRightLeft} label="Toser" active={activeTab === 'transfer_out'} onClick={() => { setActiveTab('transfer_out'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+              </>
             )}
-            {user.role === 'cashier' && (
-              <SidebarItem icon={ArrowRightLeft} label="Tosser" active={activeTab === 'transfer_out'} onClick={() => { setActiveTab('transfer_out'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
-            )}
-
             {user.role === 'gudang' && (
               <>
                 <SidebarItem icon={RotateCcw} label="R&B" active={activeTab === 'r_n_b'} onClick={() => { setActiveTab('r_n_b'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
                 <SidebarItem icon={GitPullRequest} label="Outlet Request" active={activeTab === 'outlet_request'} onClick={() => { setActiveTab('outlet_request'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
-                <SidebarItem icon={ShoppingCart} label="Penerimaan Barang" active={activeTab === 'beli'} onClick={() => { setActiveTab('beli'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+                <SidebarItem icon={Inbox} label="Penerimaan Barang" active={activeTab === 'beli'} onClick={() => { setActiveTab('beli'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
               </>
             )}
+          </div>
 
+          {/* Category: Keuangan & Riwayat */}
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-4.5 mb-2">Keuangan & Riwayat</p>
             <SidebarItem icon={Wallet} label="Arus Kas" active={activeTab === 'cashflow'} onClick={() => { setActiveTab('cashflow'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
             {user.role === 'cashier' && (
               <SidebarItem icon={ArrowDownLeft} label="Pengeluaran" active={activeTab === 'expenses'} onClick={() => { setActiveTab('expenses'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
             )}
-
             {user.role !== 'gudang' && (
               <>
-                <SidebarItem icon={History} label="Riwayat" active={activeTab === 'history'} onClick={() => { setActiveTab('history'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+                <SidebarItem icon={History} label="Riwayat Transaksi" active={activeTab === 'history'} onClick={() => { setActiveTab('history'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
                 <SidebarItem icon={ClipboardList} label="Riwayat Kasir" active={activeTab === 'register-history'} onClick={() => { setActiveTab('register-history'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
               </>
             )}
-            {user.role === 'admin' && (
-              <>
-                <SidebarItem icon={Plus} label="Diskon" active={activeTab === 'discounts'} onClick={() => { setActiveTab('discounts'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
-                <SidebarItem icon={FileText} label="Pengaturan Struk" active={activeTab === 'receipt-settings'} onClick={() => { setActiveTab('receipt-settings'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
-                <SidebarItem icon={Users} label="Pengguna" active={activeTab === 'users'} onClick={() => { setActiveTab('users'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
-              </>
-            )}
-          </nav>
+          </div>
+
+          {/* Category: Administrasi */}
+          {user.role === 'admin' && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-4.5 mb-2">Administrasi</p>
+              <SidebarItem icon={Percent} label="Diskon" active={activeTab === 'discounts'} onClick={() => { setActiveTab('discounts'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+              <SidebarItem icon={FileText} label="Pengaturan Struk" active={activeTab === 'receipt-settings'} onClick={() => { setActiveTab('receipt-settings'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+              <SidebarItem icon={Users} label="Pengguna" active={activeTab === 'users'} onClick={() => { setActiveTab('users'); if (window.innerWidth < 1024) setIsSidebarOpen(false); }} />
+            </div>
+          )}
         </div>
 
-        <div className="mt-auto p-8">
-          <div className="bg-slate-50 p-4 rounded-2xl">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
-            <p className="font-bold text-slate-900">Aktif</p>
+        {/* Sidebar Footer */}
+        <div className="p-6 border-t border-slate-50 flex-shrink-0">
+          <div className="bg-slate-50/60 border border-slate-100 p-4 rounded-2xl flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Koneksi Sistem</p>
+              <p className="text-sm font-black text-slate-700 mt-0.5">Server Online</p>
+            </div>
+            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              Aktif
+            </div>
           </div>
         </div>
       </motion.aside>

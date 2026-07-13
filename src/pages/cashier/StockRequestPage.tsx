@@ -50,6 +50,8 @@ export const StockRequestPage = ({
     [materialId: number]: {
       stock_awal: number;
       masuk: number;
+      tosser_in: number;
+      tosser_out: number;
       terpakai: number;
       terbuang: number;
       sisa_stock?: number;
@@ -87,6 +89,8 @@ export const StockRequestPage = ({
             inputsMap[item.material_id] = {
               stock_awal: item.stock_awal,
               masuk: item.masuk,
+              tosser_in: item.tosser_in || 0,
+              tosser_out: item.tosser_out || 0,
               terpakai: item.terpakai,
               terbuang: item.terbuang,
               sisa_stock: item.sisa_stock
@@ -98,6 +102,8 @@ export const StockRequestPage = ({
             inputsMap[m.id] = {
               stock_awal: m.stock,
               masuk: 0,
+              tosser_in: 0,
+              tosser_out: 0,
               terpakai: 0,
               terbuang: 0,
               sisa_stock: m.stock
@@ -137,7 +143,6 @@ export const StockRequestPage = ({
     if (n === 'ayam pk') return 'Goreng Ayam PK';
     if (n === 'saus oil') return 'S. Chili oil';
     if (n === 'saus geprek') return 'S. Geprek';
-    if (n === 'kulit') return 'Kulit Mentah';
     return name;
   };
 
@@ -150,11 +155,34 @@ export const StockRequestPage = ({
   });
 
   const handleInputChange = (materialId: number, field: string, val: number) => {
+    // 1. Prevent negative values
+    const cleanVal = Math.max(0, val);
+
+    // 2. Validate resulting stock akhir must not be negative
+    const current = stockInputs[materialId] || { stock_awal: 0, masuk: 0, tosser_in: 0, tosser_out: 0, terpakai: 0, terbuang: 0 };
+    const nextState = {
+      ...current,
+      [field]: cleanVal
+    };
+
+    const stock_awal = Number(nextState.stock_awal || 0);
+    const tosser_in = Number(nextState.tosser_in || 0);
+    const tosser_out = Number(nextState.tosser_out || 0);
+    const terpakai = Number(nextState.terpakai || 0);
+    const terbuang = Number(nextState.terbuang || 0);
+
+    const resultingStockAkhir = stock_awal + tosser_in - tosser_out - terpakai - terbuang;
+
+    if (resultingStockAkhir < 0) {
+      alert("Peringatan: Stok akhir tidak boleh kurang dari 0!");
+      return;
+    }
+
     setStockInputs(prev => ({
       ...prev,
       [materialId]: {
         ...prev[materialId],
-        [field]: val
+        [field]: cleanVal
       }
     }));
   };
@@ -164,18 +192,22 @@ export const StockRequestPage = ({
     setSubmitting(true);
     try {
       const items = materials.map(m => {
-        const input = stockInputs[m.id] || { stock_awal: m.stock, masuk: 0, terpakai: 0, terbuang: 0, sisa_stock: m.stock };
+        const input = stockInputs[m.id] || { stock_awal: m.stock, masuk: 0, tosser_in: 0, tosser_out: 0, terpakai: 0, terbuang: 0, sisa_stock: m.stock };
 
         const stock_awal = Number(input.stock_awal || 0);
+        const tosser_in = Number(input.tosser_in || 0);
+        const tosser_out = Number(input.tosser_out || 0);
         const terpakai = Number(input.terpakai || 0); // terjual
         const terbuang = Number(input.terbuang || 0); // retur
-        const masuk = 0; // no masuk column in this view
-        const sisa_stock = stock_awal - terpakai - terbuang;
+        const masuk = Number(input.masuk || 0);
+        const sisa_stock = stock_awal + tosser_in - tosser_out - terpakai - terbuang;
 
         return {
           material_id: m.id,
           stock_awal,
           masuk,
+          tosser_in,
+          tosser_out,
           terpakai,
           terbuang,
           sisa_stock
@@ -355,22 +387,24 @@ export const StockRequestPage = ({
               {/* Lembar Cek Checklist Table */}
               <Card className="overflow-hidden p-0 border border-slate-100 shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[700px]">
+                  <table className="w-full text-left min-w-[850px]">
                     <thead className="bg-slate-50 border-b border-slate-100">
                       <tr>
                         <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Barang</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-32">Stock Awal</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-32">Terjual</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-32">Retur</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right w-36">Stock Akhir</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-28">Stock Awal</th>
+                        <th className="px-6 py-4 text-xs font-bold text-emerald-600 uppercase tracking-wider text-center w-28">Toser In</th>
+                        <th className="px-6 py-4 text-xs font-bold text-rose-600 uppercase tracking-wider text-center w-28">Toser Out</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-28">Terjual</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-28">Retur</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right w-32">Stock Akhir</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {filteredMaterials.map(material => {
-                        const inputs = stockInputs[material.id] || { stock_awal: material.stock, masuk: 0, terpakai: 0, terbuang: 0, sisa_stock: material.stock };
+                        const inputs = stockInputs[material.id] || { stock_awal: material.stock, masuk: 0, tosser_in: 0, tosser_out: 0, terpakai: 0, terbuang: 0, sisa_stock: material.stock };
 
-                        // Formula: Stock Akhir = Stock Awal - Terjual (terpakai) - Retur (terbuang)
-                        const stockAkhir = Number(inputs.stock_awal || 0) - Number(inputs.terpakai || 0) - Number(inputs.terbuang || 0);
+                        // Stok Akhir = Stok Awal + Toser In - Toser Out - Terjual (terpakai) - Retur (terbuang)
+                        const stockAkhir = Number(inputs.stock_awal || 0) + Number(inputs.tosser_in || 0) - Number(inputs.tosser_out || 0) - Number(inputs.terpakai || 0) - Number(inputs.terbuang || 0);
 
                         return (
                           <tr key={material.id} className="hover:bg-slate-50/50 transition-colors">
@@ -387,11 +421,27 @@ export const StockRequestPage = ({
                                 value={inputs.stock_awal === undefined ? '' : inputs.stock_awal}
                                 onChange={(e) => handleInputChange(material.id, 'stock_awal', Number(e.target.value))}
                                 className={cn(
-                                  "w-24 px-3 py-2 border rounded-xl text-center font-bold outline-none transition-all text-sm",
+                                  "w-20 px-2 py-2 border rounded-xl text-center font-bold outline-none transition-all text-sm",
                                   material.enable_stok_awal
-                                    ? "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    ? "bg-slate-50 border-slate-200 text-slate-800 focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
                                     : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-75"
                                 )}
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <input
+                                type="number"
+                                disabled
+                                value={inputs.tosser_in === undefined ? 0 : inputs.tosser_in}
+                                className="w-20 px-2 py-2 bg-emerald-50/30 border border-emerald-100 rounded-xl text-center font-bold text-emerald-600 cursor-not-allowed opacity-75 outline-none transition-all text-sm"
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <input
+                                type="number"
+                                disabled
+                                value={inputs.tosser_out === undefined ? 0 : inputs.tosser_out}
+                                className="w-20 px-2 py-2 bg-rose-50/30 border border-rose-100 rounded-xl text-center font-bold text-rose-600 cursor-not-allowed opacity-75 outline-none transition-all text-sm"
                               />
                             </td>
                             <td className="px-6 py-4 text-center">
@@ -401,7 +451,7 @@ export const StockRequestPage = ({
                                 placeholder="0"
                                 value={inputs.terpakai === undefined ? '' : inputs.terpakai}
                                 onChange={(e) => handleInputChange(material.id, 'terpakai', Number(e.target.value))}
-                                className="w-24 px-3 py-2 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl text-center font-bold text-slate-800 outline-none transition-all text-sm"
+                                className="w-20 px-2 py-2 bg-slate-50 border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 rounded-xl text-center font-bold text-slate-800 outline-none transition-all text-sm"
                               />
                             </td>
                             <td className="px-6 py-4 text-center">
@@ -411,7 +461,7 @@ export const StockRequestPage = ({
                                 placeholder="0"
                                 value={inputs.terbuang === undefined ? '' : inputs.terbuang}
                                 onChange={(e) => handleInputChange(material.id, 'terbuang', Number(e.target.value))}
-                                className="w-24 px-3 py-2 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 rounded-xl text-center font-bold text-slate-800 outline-none transition-all text-sm"
+                                className="w-20 px-2 py-2 bg-slate-50 border border-slate-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 rounded-xl text-center font-bold text-slate-800 outline-none transition-all text-sm"
                               />
                             </td>
                             <td className="px-6 py-4 text-right font-black text-slate-800 text-sm">
@@ -427,7 +477,7 @@ export const StockRequestPage = ({
                       })}
                       {filteredMaterials.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="text-center py-10 text-slate-400">Belum ada barang stock pada kategori ini.</td>
+                          <td colSpan={7} className="text-center py-10 text-slate-400">Belum ada barang stock pada kategori ini.</td>
                         </tr>
                       )}
                     </tbody>
@@ -587,57 +637,59 @@ export const StockRequestPage = ({
             </Card>
 
             <Card className="md:col-span-2 p-0 overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tanggal</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Barang</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Qty</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Harga</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Total</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Metode</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {requests.map(r => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-6 py-4 text-sm text-slate-500">{new Date(r.created_at).toLocaleDateString('id-ID')}</td>
-                      <td className="px-6 py-4 font-bold text-slate-900">{r.material_name}</td>
-                      <td className="px-6 py-4 text-slate-600">
-                        {r.status === 'approved' ? (
-                          <div className="flex flex-col">
-                            <span className="text-xs line-through text-slate-400">Minta: {r.quantity}</span>
-                            <span className="text-sm font-bold text-emerald-600">Acc: {r.approved_quantity || r.quantity}</span>
-                          </div>
-                        ) : (
-                          <span className="font-bold">{r.quantity}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-slate-900">{formatCurrency(r.price || 0)}</td>
-                      <td className="px-6 py-4 font-bold text-indigo-600">{formatCurrency(r.total_price || 0)}</td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
-                          r.payment_method === 'transfer' ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
-                        )}>
-                          {r.payment_method === 'transfer' ? 'Transfer' : 'Cash'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                          r.status === 'pending' ? "bg-amber-100 text-amber-600" :
-                            r.status === 'approved' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
-                        )}>
-                          {r.status}
-                        </span>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left min-w-[600px]">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tanggal</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Barang</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Qty</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Harga</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Total</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Metode</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
                     </tr>
-                  ))}
-                  {requests.length === 0 && <tr><td colSpan={7} className="text-center py-6 text-slate-400">Belum ada permintaan</td></tr>}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {requests.map(r => (
+                      <tr key={r.id} className="hover:bg-slate-50">
+                        <td className="px-6 py-4 text-sm text-slate-500">{new Date(r.created_at).toLocaleDateString('id-ID')}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900">{r.material_name}</td>
+                        <td className="px-6 py-4 text-slate-600">
+                          {r.status === 'approved' ? (
+                            <div className="flex flex-col">
+                              <span className="text-xs line-through text-slate-400">Minta: {r.quantity}</span>
+                              <span className="text-sm font-bold text-emerald-600">Acc: {r.approved_quantity || r.quantity}</span>
+                            </div>
+                          ) : (
+                            <span className="font-bold">{r.quantity}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-bold text-slate-900">{formatCurrency(r.price || 0)}</td>
+                        <td className="px-6 py-4 font-bold text-indigo-600">{formatCurrency(r.total_price || 0)}</td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider",
+                            r.payment_method === 'transfer' ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
+                          )}>
+                            {r.payment_method === 'transfer' ? 'Transfer' : 'Cash'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                            r.status === 'pending' ? "bg-amber-100 text-amber-600" :
+                              r.status === 'approved' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
+                          )}>
+                            {r.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {requests.length === 0 && <tr><td colSpan={7} className="text-center py-6 text-slate-400">Belum ada permintaan</td></tr>}
+                  </tbody>
+                </table>
+              </div>
             </Card>
           </div>
         </div>

@@ -13,16 +13,20 @@ export const RegisterHistory = ({ user }: { user: User }) => {
   
   const [cashiers, setCashiers] = useState<User[]>([]);
   const [selectedCashier, setSelectedCashier] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   const fetchHistory = () => {
     let url = '/api/cash-registers/history';
     const params = [];
     if (user.role === 'admin') {
       if (selectedCashier) params.push(`cashier_id=${selectedCashier}`);
-      if (selectedDate) params.push(`date=${selectedDate}`);
     } else if (user.role === 'cashier') {
       params.push(`cashier_id=${user.id}`);
+    }
+    if (filterStartDate && filterEndDate) {
+      params.push(`startDate=${filterStartDate}`);
+      params.push(`endDate=${filterEndDate}`);
     }
     const queryStr = params.length > 0 ? '?' + params.join('&') : '';
     api.get(url + queryStr).then(setHistory);
@@ -30,7 +34,7 @@ export const RegisterHistory = ({ user }: { user: User }) => {
 
   useEffect(() => {
     fetchHistory();
-  }, [selectedCashier, selectedDate]);
+  }, [selectedCashier, filterStartDate, filterEndDate]);
 
   useEffect(() => {
     if (user.role === 'admin') {
@@ -83,15 +87,24 @@ export const RegisterHistory = ({ user }: { user: User }) => {
             <Calendar size={14} className="text-slate-400" />
             <input 
               type="date" 
-              value={selectedDate} 
-              onChange={e => setSelectedDate(e.target.value)} 
+              value={filterStartDate} 
+              onChange={e => setFilterStartDate(e.target.value)} 
               className="text-xs font-bold outline-none bg-transparent"
+              placeholder="Tanggal Awal"
+            />
+            <span className="text-slate-300 text-xs font-medium">s/d</span>
+            <input 
+              type="date" 
+              value={filterEndDate} 
+              onChange={e => setFilterEndDate(e.target.value)} 
+              className="text-xs font-bold outline-none bg-transparent"
+              placeholder="Tanggal Akhir"
             />
           </div>
           
-          {((user.role === 'admin' && selectedCashier) || selectedDate) && (
+          {((user.role === 'admin' && selectedCashier) || filterStartDate || filterEndDate) && (
             <button 
-              onClick={() => { if (user.role === 'admin') setSelectedCashier(''); setSelectedDate(''); }}
+              onClick={() => { if (user.role === 'admin') setSelectedCashier(''); setFilterStartDate(''); setFilterEndDate(''); }}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
             >
               Reset Filter

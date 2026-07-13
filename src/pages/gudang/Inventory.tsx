@@ -121,6 +121,7 @@ export const Inventory = ({
 
       api.get('/api/stock-requests' + queryStr).then(setRequests);
       api.get('/api/cashier-stocks' + queryStr).then(setCashierStocks);
+      api.get('/api/offline-returns' + queryStr).then(setOfflineReturns).catch(console.error);
     }
   };
 
@@ -584,7 +585,7 @@ export const Inventory = ({
         </div>
       )}
 
-      {(activeInventoryTab === 'requests' || activeInventoryTab === 'reports') && (
+      {(activeInventoryTab === 'requests' || activeInventoryTab === 'reports' || activeInventoryTab === 'broken') && (
         <div className="flex flex-wrap gap-4 items-center bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
           <select
             value={selectedCashier}
@@ -998,6 +999,8 @@ export const Inventory = ({
                           <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Barang</th>
                           <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-24">Stok Awal</th>
                           <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-24">Masuk</th>
+                          <th className="px-6 py-3 text-xs font-bold text-emerald-600 uppercase tracking-wider text-center w-24">Toser In</th>
+                          <th className="px-6 py-3 text-xs font-bold text-rose-600 uppercase tracking-wider text-center w-24">Toser Out</th>
                           <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-24">Terpakai</th>
                           <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-center w-24">Terbuang</th>
                           <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-right w-28">Sisa Stok</th>
@@ -1009,6 +1012,8 @@ export const Inventory = ({
                             <td className="px-6 py-3 text-sm font-bold text-slate-900">{item.material_name}</td>
                             <td className="px-6 py-3 text-sm text-center text-slate-600 font-semibold">{item.stock_awal}</td>
                             <td className="px-6 py-3 text-sm text-center text-slate-600 font-semibold">{item.masuk}</td>
+                            <td className="px-6 py-3 text-sm text-center text-emerald-600 font-semibold">{item.tosser_in || 0}</td>
+                            <td className="px-6 py-3 text-sm text-center text-rose-600 font-semibold">{item.tosser_out || 0}</td>
                             <td className="px-6 py-3 text-sm text-center text-slate-600 font-semibold">{item.terpakai}</td>
                             <td className="px-6 py-3 text-sm text-center text-slate-600 font-semibold">{item.terbuang}</td>
                             <td className="px-6 py-3 text-sm text-right font-black text-slate-800 bg-slate-50/50">{item.sisa_stock}</td>
@@ -1365,7 +1370,8 @@ export const Inventory = ({
                   </div>
                   <div className="sm:col-span-2">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Kategori</label>
-                    <select disabled={user.role === 'cashier'} name="category_id" defaultValue={editingProduct?.category_id} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+                    <select disabled={user.role === 'cashier'} name="category_id" defaultValue={editingProduct?.category_id || ""} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+                      <option value="">-- Tanpa Kategori --</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>

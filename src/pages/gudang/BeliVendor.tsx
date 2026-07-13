@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Trash2, Edit } from 'lucide-react';
+import { ShoppingCart, Plus, Trash2, Edit, Calendar } from 'lucide-react';
 import { cn, formatCurrency } from '../../lib/utils';
 import { api } from '../../lib/api';
 import { Card } from '../../components/Card';
@@ -12,6 +12,10 @@ export const BeliVendor = ({ user, onPurchaseSuccess }: { user: User; onPurchase
   const [vendorItems, setVendorItems] = useState<VendorItem[]>([]);
   const [vendorRequests, setVendorRequests] = useState<any[]>([]);
   const [materials, setMaterials] = useState<InventoryMaterial[]>([]);
+
+  // Date range filters for vendor purchases
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   // 1. Vendor CRUD States
   const [newVendorCode, setNewVendorCode] = useState('');
@@ -39,16 +43,28 @@ export const BeliVendor = ({ user, onPurchaseSuccess }: { user: User; onPurchase
   const [vendorPaymentMethod, setVendorPaymentMethod] = useState<'cash' | 'transfer'>('cash');
   const [purchaseSubmitting, setPurchaseSubmitting] = useState(false);
 
+  const fetchFilteredPurchases = () => {
+    const params = [];
+    if (filterStartDate) params.push(`startDate=${filterStartDate}`);
+    if (filterEndDate) params.push(`endDate=${filterEndDate}`);
+    const queryStr = params.length > 0 ? '?' + params.join('&') : '';
+    api.get('/api/vendor-stock-requests' + queryStr).then(setVendorRequests).catch(console.error);
+  };
+
   const fetchData = () => {
     api.get('/api/vendors').then(setVendors).catch(console.error);
     api.get('/api/vendor-items').then(setVendorItems).catch(console.error);
-    api.get('/api/vendor-stock-requests').then(setVendorRequests).catch(console.error);
     api.get('/api/inventory-materials').then(setMaterials).catch(console.error);
+    fetchFilteredPurchases();
   };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchFilteredPurchases();
+  }, [filterStartDate, filterEndDate]);
 
   // --- 1. Vendor CRUD Actions ---
   const handleCreateVendor = async (e: React.FormEvent) => {
@@ -401,6 +417,37 @@ export const BeliVendor = ({ user, onPurchaseSuccess }: { user: User; onPurchase
               <span className="px-3 py-1 bg-white rounded-xl shadow-sm text-xs font-bold text-slate-700">
                 {vendorRequests.length} Transaksi
               </span>
+            </div>
+
+            {/* Date range filter */}
+            <div className="flex flex-wrap gap-4 items-center bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 w-full sm:w-auto">
+                <Calendar size={14} className="text-slate-400" />
+                <input
+                  type="date"
+                  value={filterStartDate}
+                  onChange={e => setFilterStartDate(e.target.value)}
+                  className="text-xs font-bold outline-none bg-transparent"
+                  placeholder="Tanggal Awal"
+                />
+                <span className="text-slate-300 text-xs font-medium">s/d</span>
+                <input
+                  type="date"
+                  value={filterEndDate}
+                  onChange={e => setFilterEndDate(e.target.value)}
+                  className="text-xs font-bold outline-none bg-transparent"
+                  placeholder="Tanggal Akhir"
+                />
+              </div>
+
+              {(filterStartDate || filterEndDate) && (
+                <button
+                  onClick={() => { setFilterStartDate(''); setFilterEndDate(''); }}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
+                >
+                  Reset Filter
+                </button>
+              )}
             </div>
 
             <Card className="p-0 overflow-hidden border border-slate-100 shadow-sm bg-white">

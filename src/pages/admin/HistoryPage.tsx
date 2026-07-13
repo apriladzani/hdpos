@@ -13,7 +13,8 @@ export const HistoryPage = ({ user }: { user: User }) => {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   
   const [selectedCashier, setSelectedCashier] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
   const [cashiers, setCashiers] = useState<User[]>([]);
 
   useEffect(() => {
@@ -35,16 +36,20 @@ export const HistoryPage = ({ user }: { user: User }) => {
         txParams.push(`user_id=${selectedCashier}`);
         sessParams.push(`cashier_id=${selectedCashier}`);
       }
-      if (selectedDate) {
-        txParams.push(`date=${selectedDate}`);
-        sessParams.push(`date=${selectedDate}`);
+      if (filterStartDate && filterEndDate) {
+        txParams.push(`startDate=${filterStartDate}`);
+        txParams.push(`endDate=${filterEndDate}`);
+        sessParams.push(`startDate=${filterStartDate}`);
+        sessParams.push(`endDate=${filterEndDate}`);
       }
     } else if (user.role === 'cashier') {
       txParams.push(`user_id=${user.id}`);
       sessParams.push(`cashier_id=${user.id}`);
-      if (selectedDate) {
-        txParams.push(`date=${selectedDate}`);
-        sessParams.push(`date=${selectedDate}`);
+      if (filterStartDate && filterEndDate) {
+        txParams.push(`startDate=${filterStartDate}`);
+        txParams.push(`endDate=${filterEndDate}`);
+        sessParams.push(`startDate=${filterStartDate}`);
+        sessParams.push(`endDate=${filterEndDate}`);
       }
     }
     
@@ -62,7 +67,7 @@ export const HistoryPage = ({ user }: { user: User }) => {
 
   useEffect(() => {
     fetchHistory();
-  }, [selectedCashier, selectedDate]);
+  }, [selectedCashier, filterStartDate, filterEndDate]);
 
   const handlePrint = async (id: number) => {
     const fullTransaction = await api.get(`/api/transactions/${id}`);
@@ -133,15 +138,24 @@ export const HistoryPage = ({ user }: { user: User }) => {
             <Calendar size={14} className="text-slate-400" />
             <input 
               type="date" 
-              value={selectedDate} 
-              onChange={e => setSelectedDate(e.target.value)} 
+              value={filterStartDate} 
+              onChange={e => setFilterStartDate(e.target.value)} 
               className="text-xs font-bold outline-none bg-transparent"
+              placeholder="Tanggal Awal"
+            />
+            <span className="text-slate-300 text-xs font-medium">s/d</span>
+            <input 
+              type="date" 
+              value={filterEndDate} 
+              onChange={e => setFilterEndDate(e.target.value)} 
+              className="text-xs font-bold outline-none bg-transparent"
+              placeholder="Tanggal Akhir"
             />
           </div>
           
-          {((user.role === 'admin' && selectedCashier) || selectedDate) && (
+          {((user.role === 'admin' && selectedCashier) || filterStartDate || filterEndDate) && (
             <button 
-              onClick={() => { if (user.role === 'admin') setSelectedCashier(''); setSelectedDate(''); }}
+              onClick={() => { if (user.role === 'admin') setSelectedCashier(''); setFilterStartDate(''); setFilterEndDate(''); }}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
             >
               Reset Filter

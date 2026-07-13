@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Calendar, TrendingUp, TrendingDown, CreditCard, Package, AlertCircle } from 'lucide-react';
+import { Download, Calendar, TrendingUp, TrendingDown, CreditCard, Package, AlertCircle, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
   ResponsiveContainer,
@@ -110,7 +110,9 @@ export const Dashboard = ({ user }: { user: User }) => {
         ['Periode', `${startDate} s/d ${endDate}`],
         [],
         ['Ringkasan Eksekutif'],
+        ['Total Pemasukan Stok', performance.totalIncome],
         ['Total Pembelian Vendor', performance.totalPurchases],
+        ['Total Kerugian', performance.totalLoss],
         ['Total Pengadaan', performance.purchaseCount],
         ['Total Jenis Barang', performance.totalMaterials],
         ['Barang Rendah Stok (<10)', performance.lowStockCount],
@@ -267,7 +269,7 @@ export const Dashboard = ({ user }: { user: User }) => {
       ) : performance ? (
         <div className="space-y-6">
           {user.role === 'gudang' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatCard
                 label="Total Pemasukan Stok"
                 value={formatCurrency(performance.totalIncome || 0)}
@@ -281,15 +283,9 @@ export const Dashboard = ({ user }: { user: User }) => {
                 color="bg-rose-500"
               />
               <StatCard
-                label="Total Jenis Barang"
-                value={`${performance.totalMaterials || 0} Barang`}
-                icon={Package}
-                color="bg-indigo-600"
-              />
-              <StatCard
-                label="Stok Menipis (<10)"
-                value={`${performance.lowStockCount || 0} Barang`}
-                icon={AlertCircle}
+                label="Total Kerugian"
+                value={formatCurrency(performance.totalLoss || 0)}
+                icon={AlertTriangle}
                 color="bg-amber-500"
               />
             </div>
@@ -480,9 +476,13 @@ export const Dashboard = ({ user }: { user: User }) => {
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
-                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                     <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1} />
                       <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorLoss" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -513,6 +513,7 @@ export const Dashboard = ({ user }: { user: User }) => {
                     <>
                       <Area type="monotone" dataKey="income" name="Pemasukan" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
                       <Area type="monotone" dataKey="expense" name="Pengeluaran" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorExpense)" />
+                      <Area type="monotone" dataKey="loss" name="Kerugian" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorLoss)" />
                     </>
                   ) : (
                     <Area type="monotone" dataKey="total" name="Penjualan" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorPerfDashboard)" />

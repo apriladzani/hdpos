@@ -65,29 +65,31 @@ export const DiscountsAdmin = ({ user }: { user: User }) => {
         </Card>
 
         <Card className="md:col-span-2 p-0 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Nama</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Nilai</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {discounts.map(d => (
-                <tr key={d.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-bold text-slate-900">{d.name}</td>
-                  <td className="px-6 py-4 font-bold text-slate-600">
-                    {d.type === 'percent' ? `${d.value}%` : formatCurrency(d.value)}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => handleDelete(d.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><Trash2 size={16} /></button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[450px]">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Nama</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Nilai</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Aksi</th>
                 </tr>
-              ))}
-              {discounts.length === 0 && <tr><td colSpan={3} className="text-center py-6 text-slate-400">Belum ada diskon</td></tr>}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {discounts.map(d => (
+                  <tr key={d.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 font-bold text-slate-900">{d.name}</td>
+                    <td className="px-6 py-4 font-bold text-slate-600">
+                      {d.type === 'percent' ? `${d.value}%` : formatCurrency(d.value)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button onClick={() => handleDelete(d.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg"><Trash2 size={16} /></button>
+                    </td>
+                  </tr>
+                ))}
+                {discounts.length === 0 && <tr><td colSpan={3} className="text-center py-6 text-slate-400">Belum ada diskon</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </Card>
       </div>
     </div>

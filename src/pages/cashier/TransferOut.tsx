@@ -17,6 +17,10 @@ export const TransferOut = ({
   const [transfersOut, setTransfersOut] = useState<any[]>([]);
   const [transfersIn, setTransfersIn] = useState<any[]>([]);
 
+  // Date range filters for Tosser / Transfers
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+
   const [selectedOutletId, setSelectedOutletId] = useState('');
   const [selectedMaterialId, setSelectedMaterialId] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -26,27 +30,36 @@ export const TransferOut = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const fetchData = async () => {
-    setLoading(true);
-    setErrorMessage('');
+  const fetchMaterialsAndOutlets = async () => {
     try {
-      // 1. Fetch materials with stock for current cashier user
       const mats = await api.get(`/api/inventory-materials?user_id=${user.id}`);
       setMaterials(mats);
 
-      // 2. Fetch all users to filter other cashiers
       const allUsers = await api.get('/api/users');
       const filteredOutlets = allUsers.filter(
         (u: UserType) => u.role === 'cashier' && u.id !== user.id
       );
       setOutlets(filteredOutlets);
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  const fetchTransfersHistory = async () => {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const dateParams = [];
+      if (filterStartDate) dateParams.push(`startDate=${filterStartDate}`);
+      if (filterEndDate) dateParams.push(`endDate=${filterEndDate}`);
+      const queryStr = dateParams.length > 0 ? '&' + dateParams.join('&') : '';
 
       // 3. Fetch outgoing transfers
-      const outHistory = await api.get(`/api/stock-transfers?sender_id=${user.id}`);
+      const outHistory = await api.get(`/api/stock-transfers?sender_id=${user.id}${queryStr}`);
       setTransfersOut(outHistory);
 
       // 4. Fetch incoming transfers
-      const inHistory = await api.get(`/api/stock-transfers?receiver_id=${user.id}`);
+      const inHistory = await api.get(`/api/stock-transfers?receiver_id=${user.id}${queryStr}`);
       setTransfersIn(inHistory);
     } catch (err: any) {
       console.error(err);
@@ -56,9 +69,18 @@ export const TransferOut = ({
     }
   };
 
+  const fetchData = async () => {
+    await fetchMaterialsAndOutlets();
+    await fetchTransfersHistory();
+  };
+
   useEffect(() => {
-    fetchData();
+    fetchMaterialsAndOutlets();
   }, [user]);
+
+  useEffect(() => {
+    fetchTransfersHistory();
+  }, [user, filterStartDate, filterEndDate]);
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +174,7 @@ export const TransferOut = ({
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 w-full overflow-y-auto pb-20">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Tosser</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Toser</h1>
           <p className="text-sm md:text-base text-slate-500">Kirim stok ke outlet lain dan kelola penerimaan stok masuk.</p>
         </div>
         <button
@@ -171,20 +193,51 @@ export const TransferOut = ({
           onClick={() => { setActiveSubTab('transfer_out'); setErrorMessage(''); setSuccessMessage(''); }}
           className={cn(
             "flex-1 py-3 text-xs md:text-sm font-bold rounded-xl transition-all whitespace-nowrap",
-            activeSubTab === 'transfer_out' ? "bg-white text-indigo-600 shadow-md" : "text-slate-500 hover:text-slate-800"
+            activeSubTab === 'transfer_out' ? "bg-white text-violet-600 shadow-md" : "text-slate-500 hover:text-slate-800"
           )}
         >
-          Tosser Out
+          Toser Out
         </button>
         <button
           onClick={() => { setActiveSubTab('penerimaan'); setErrorMessage(''); setSuccessMessage(''); }}
           className={cn(
             "flex-1 py-3 text-xs md:text-sm font-bold rounded-xl transition-all whitespace-nowrap",
-            activeSubTab === 'penerimaan' ? "bg-white text-indigo-600 shadow-md" : "text-slate-500 hover:text-slate-800"
+            activeSubTab === 'penerimaan' ? "bg-white text-violet-600 shadow-md" : "text-slate-500 hover:text-slate-800"
           )}
         >
-          Tosser In ({transfersIn.filter(t => t.status === 'pending').length})
+          Toser In ({transfersIn.filter(t => t.status === 'pending').length})
         </button>
+      </div>
+
+      {/* Date range filter */}
+      <div className="flex flex-wrap gap-4 items-center bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
+        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 w-full sm:w-auto">
+          <Calendar size={14} className="text-slate-400" />
+          <input
+            type="date"
+            value={filterStartDate}
+            onChange={e => setFilterStartDate(e.target.value)}
+            className="text-xs font-bold outline-none bg-transparent"
+            placeholder="Tanggal Awal"
+          />
+          <span className="text-slate-300 text-xs font-medium">s/d</span>
+          <input
+            type="date"
+            value={filterEndDate}
+            onChange={e => setFilterEndDate(e.target.value)}
+            className="text-xs font-bold outline-none bg-transparent"
+            placeholder="Tanggal Akhir"
+          />
+        </div>
+
+        {(filterStartDate || filterEndDate) && (
+          <button
+            onClick={() => { setFilterStartDate(''); setFilterEndDate(''); }}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-all"
+          >
+            Reset Filter
+          </button>
+        )}
       </div>
 
       {errorMessage && (
@@ -206,7 +259,7 @@ export const TransferOut = ({
           <Card className="lg:col-span-1 space-y-6">
             <form onSubmit={handleTransfer} className="space-y-4">
               <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
-                <Send size={18} className="text-indigo-600" />
+                <Send size={18} className="text-violet-600" />
                 Kirim Stok
               </h3>
 
@@ -216,7 +269,7 @@ export const TransferOut = ({
                   required
                   value={selectedOutletId}
                   onChange={e => setSelectedOutletId(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 font-medium text-sm"
                 >
                   <option value="">Pilih outlet tujuan...</option>
                   {outlets.map(o => (
@@ -231,7 +284,7 @@ export const TransferOut = ({
                   required
                   value={selectedMaterialId}
                   onChange={e => setSelectedMaterialId(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 font-medium text-sm"
                 >
                   <option value="">Pilih barang...</option>
                   {materials.map(m => (
@@ -251,7 +304,7 @@ export const TransferOut = ({
                     min="1"
                     value={quantity}
                     onChange={e => setQuantity(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-sm"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 font-bold text-sm"
                     placeholder="0"
                   />
                   {selectedMaterial && (
@@ -288,7 +341,7 @@ export const TransferOut = ({
               <button
                 type="submit"
                 disabled={submitting || loading}
-                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 text-sm"
+                className="w-full py-3 bg-violet-600 text-white rounded-xl font-bold shadow-lg shadow-violet-100 hover:bg-violet-700 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 text-sm"
               >
                 <Send size={16} />
                 {submitting ? 'Mengirim...' : 'Kirim Transfer'}
@@ -305,7 +358,7 @@ export const TransferOut = ({
               </h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[650px]">
                 <thead className="bg-slate-50 border-b border-slate-100">
                   <tr>
                     <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tanggal</th>
@@ -328,7 +381,7 @@ export const TransferOut = ({
                         })}
                       </td>
                       <td className="px-6 py-4 font-bold text-slate-900">{t.material_name}</td>
-                      <td className="px-6 py-4 text-center font-bold text-indigo-600 text-sm">
+                      <td className="px-6 py-4 text-center font-bold text-violet-600 text-sm">
                         {t.quantity} {t.material_unit}
                       </td>
                       <td className="px-6 py-4">
@@ -359,12 +412,12 @@ export const TransferOut = ({
         <Card className="p-0 overflow-hidden">
           <div className="p-6 border-b border-slate-100 bg-white">
             <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-              <Inbox size={18} className="text-indigo-600" />
+              <Inbox size={18} className="text-violet-600" />
               Riwayat Penerimaan & Approval
             </h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[750px]">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tanggal</th>
@@ -388,7 +441,7 @@ export const TransferOut = ({
                       })}
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-900">{t.material_name}</td>
-                    <td className="px-6 py-4 text-center font-bold text-indigo-600 text-sm">
+                    <td className="px-6 py-4 text-center font-bold text-violet-600 text-sm">
                       {t.quantity} {t.material_unit}
                     </td>
                     <td className="px-6 py-4">

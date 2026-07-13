@@ -173,38 +173,40 @@ export const ReceiptSettingsAdmin = ({ user }: { user: User }) => {
             </Card>
 
             <Card className="md:col-span-2 p-0 overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                  <tr>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nama Cabang (Sub-Headline)</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right w-20">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {subHeadlines.map(h => (
-                    <tr key={h.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 font-bold text-slate-900 text-xs">{h.text}</td>
-                      <td className="px-4 py-3 text-right">
-                        {h.id !== 1 ? (
-                          <button 
-                            onClick={() => handleDelete(h.id)} 
-                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 font-medium px-2">Default</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {subHeadlines.length === 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left min-w-[400px]">
+                  <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
-                      <td colSpan={2} className="text-center py-4 text-slate-400 text-xs">Belum ada cabang</td>
+                      <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nama Cabang (Sub-Headline)</th>
+                      <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right w-20">Aksi</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {subHeadlines.map(h => (
+                      <tr key={h.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 font-bold text-slate-900 text-xs">{h.text}</td>
+                        <td className="px-4 py-3 text-right">
+                          {h.id !== 1 ? (
+                            <button 
+                              onClick={() => handleDelete(h.id)} 
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium px-2">Default</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {subHeadlines.length === 0 && (
+                      <tr>
+                        <td colSpan={2} className="text-center py-4 text-slate-400 text-xs">Belum ada cabang</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </Card>
           </div>
         </div>

@@ -11,14 +11,17 @@
     .no-print {
       display: none !important;
     }
+
     .print-only {
       display: block !important;
     }
+
     body {
       background: white !important;
       padding: 0 !important;
       margin: 0 !important;
     }
+
     @page {
       margin: 0.5cm;
     }
@@ -31,4 +34,13 @@
 
 body {
   @apply font-sans antialiased;
+}
+
+/* Utility to hide scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }

@@ -4,447 +4,16 @@ import path from "path";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import mysql from "mysql2/promise";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+import { pool, initDb } from "./db.js";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const JWT_SECRET = "vibepos-secret-key-2026";
-
-// Define the pool connection
-const pool = mysql.createPool({
-  host: '127.0.0.1',
-  user: 'root',
-  password: 'Adzani0204@',
-  database: 'hd_pos',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-
-pool.on('connection', (connection) => {
-  connection.query("SET time_zone = '+07:00'");
-});
-
-async function initDb() {
-  // First connect without database to create it if not exists
-  const setupPool = mysql.createPool({
-    host: '127.0.0.1',
-    user: 'root',
-    password: 'Adzani0204@',
-  });
-  await setupPool.query(`CREATE DATABASE IF NOT EXISTS hd_pos`);
-  await setupPool.end();
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      username VARCHAR(255) UNIQUE,
-      password VARCHAR(255),
-      role ENUM('admin', 'cashier', 'gudang')
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS categories (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) UNIQUE
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS material_categories (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) UNIQUE
-    )
-  `);
-
-  try { await pool.query("ALTER TABLE categories ADD COLUMN sort_order INT DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE material_categories ADD COLUMN sort_order INT DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE material_categories ADD COLUMN enable_stok_awal TINYINT(1) DEFAULT 1"); } catch (e) { }
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS products (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255),
-      price DECIMAL(10, 2),
-      stock INT DEFAULT 0,
-      category_id INT,
-      barcode VARCHAR(255),
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT,
-      total_amount DECIMAL(10, 2),
-      discount_type VARCHAR(50) DEFAULT 'none',
-      discount_value DECIMAL(10, 2) DEFAULT 0,
-      payment_method VARCHAR(100),
-      cash_received DECIMAL(10, 2),
-      change_amount DECIMAL(10, 2),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS transaction_items (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      transaction_id INT,
-      product_id INT,
-      quantity INT,
-      price_at_transaction DECIMAL(10, 2),
-      FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
-      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS expenses (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      description TEXT,
-      amount DECIMAL(10, 2),
-      date DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS open_bills (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      table_name VARCHAR(255),
-      customer_name VARCHAR(255),
-      items TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS cash_registers (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      cashier_id INT,
-      cashier_name VARCHAR(255),
-      opening_balance DECIMAL(15,2),
-      opened_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      closing_balance DECIMAL(15,2) DEFAULT NULL,
-      expected_balance DECIMAL(15,2) DEFAULT NULL,
-      closed_at DATETIME DEFAULT NULL,
-      status ENUM('open', 'closed') DEFAULT 'open'
-    )
-  `);
-
-  try { await pool.query("ALTER TABLE cash_registers ADD COLUMN closing_balance DECIMAL(15,2) DEFAULT NULL"); } catch (e) { }
-  try { await pool.query("ALTER TABLE cash_registers ADD COLUMN expected_balance DECIMAL(15,2) DEFAULT NULL"); } catch (e) { }
-  try { await pool.query("ALTER TABLE cash_registers ADD COLUMN closed_at DATETIME DEFAULT NULL"); } catch (e) { }
-  try { await pool.query("ALTER TABLE cash_registers ADD COLUMN status ENUM('open', 'closed') DEFAULT 'open'"); } catch (e) { }
-  try { await pool.query("ALTER TABLE transaction_items ADD COLUMN discount_type VARCHAR(50) DEFAULT 'none'"); } catch (e) { }
-  try { await pool.query("ALTER TABLE transaction_items ADD COLUMN discount_value DECIMAL(10,2) DEFAULT 0"); } catch (e) { }
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS expense_items (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) UNIQUE,
-      price DECIMAL(10, 2) DEFAULT 0
-    )
-  `);
-  try { await pool.query("ALTER TABLE expense_items ADD COLUMN price DECIMAL(10, 2) DEFAULT 0"); } catch (e) { }
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS discounts (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255),
-      type ENUM('percent', 'fixed'),
-      value DECIMAL(10, 2)
-    )
-  `);
-
-  // Create inventory_materials first so other tables can reference it
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS inventory_materials (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255),
-      stock INT DEFAULT 0,
-      unit VARCHAR(50) DEFAULT 'pcs',
-      price DECIMAL(10, 2) DEFAULT 0
-    )
-  `);
-  try { await pool.query("ALTER TABLE inventory_materials ADD COLUMN price DECIMAL(10, 2) DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE inventory_materials ADD COLUMN category_id INT"); } catch (e) { }
-  try { await pool.query("ALTER TABLE inventory_materials DROP FOREIGN KEY inventory_materials_ibfk_1"); } catch (e) { }
-  try { await pool.query("ALTER TABLE inventory_materials ADD CONSTRAINT fk_inventory_materials_category FOREIGN KEY (category_id) REFERENCES material_categories(id) ON DELETE SET NULL"); } catch (e) { }
-  try { await pool.query("ALTER TABLE products ADD COLUMN sort_order INT DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE inventory_materials ADD COLUMN sort_order INT DEFAULT 0"); } catch (e) { }
-
-  try {
-    // Drop cashier_stocks first because it references stock_requests or register/user
-    await pool.query("DROP TABLE IF EXISTS cashier_stocks");
-    await pool.query("DROP TABLE IF EXISTS stock_requests");
-  } catch (e) { }
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS stock_requests (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      material_id INT,
-      quantity INT,
-      status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      user_id INT DEFAULT NULL,
-      price DECIMAL(10, 2) DEFAULT 0,
-      total_price DECIMAL(10, 2) DEFAULT 0,
-      payment_method VARCHAR(50) DEFAULT 'cash',
-      approved_quantity INT DEFAULT NULL,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-    )
-  `);
-  try { await pool.query("ALTER TABLE stock_requests ADD COLUMN price DECIMAL(10, 2) DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE stock_requests ADD COLUMN total_price DECIMAL(10, 2) DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE stock_requests ADD COLUMN payment_method VARCHAR(50) DEFAULT 'cash'"); } catch (e) { }
-  try { await pool.query("ALTER TABLE stock_requests ADD COLUMN approved_quantity INT DEFAULT NULL"); } catch (e) { }
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS inventory_logs (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      material_id INT,
-      type ENUM('awal', 'akhir'),
-      quantity INT,
-      price DECIMAL(10, 2),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS cashier_stocks (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT,
-      cash_register_id INT,
-      material_id INT,
-      stock_awal INT DEFAULT 0,
-      masuk INT DEFAULT 0,
-      terpakai INT DEFAULT 0,
-      terbuang INT DEFAULT 0,
-      sisa_stock INT DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE,
-      FOREIGN KEY (cash_register_id) REFERENCES cash_registers(id) ON DELETE SET NULL
-    )
-  `);
-
-  try { await pool.query("ALTER TABLE expenses ADD COLUMN expense_item_id INT DEFAULT NULL"); } catch (e) { }
-  try { await pool.query("ALTER TABLE expenses ADD COLUMN quantity INT DEFAULT 1"); } catch (e) { }
-  try { await pool.query("ALTER TABLE expenses ADD COLUMN price DECIMAL(10, 2) DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE expenses ADD COLUMN discount DECIMAL(10, 2) DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE expenses ADD COLUMN user_id INT DEFAULT NULL"); } catch (e) { }
-  try { await pool.query("ALTER TABLE expenses ADD COLUMN payment_method VARCHAR(50) DEFAULT 'cash'"); } catch (e) { }
-
-  // Ensure discount columns exist for existing databases
-  try { await pool.query("ALTER TABLE transactions ADD COLUMN discount_type VARCHAR(50) DEFAULT 'none'"); } catch (e) { }
-  try { await pool.query("ALTER TABLE transactions ADD COLUMN discount_value DECIMAL(10, 2) DEFAULT 0"); } catch (e) { }
-
-  // Add discount columns to transaction_items for per-item discounts
-  try { await pool.query("ALTER TABLE transaction_items ADD COLUMN discount_type VARCHAR(50) DEFAULT 'none'"); } catch (e) { }
-  try { await pool.query("ALTER TABLE transaction_items ADD COLUMN discount_value DECIMAL(10, 2) DEFAULT 0"); } catch (e) { }
-  try { await pool.query("ALTER TABLE transaction_items ADD COLUMN voucher_id INT DEFAULT NULL"); } catch (e) { }
-
-  // Update role enum for existing users table
-  try { await pool.query("ALTER TABLE users MODIFY COLUMN role ENUM('admin', 'cashier', 'gudang')"); } catch (e) { }
-
-  // Add email column for existing users table
-  try { await pool.query("ALTER TABLE users ADD COLUMN email VARCHAR(255) UNIQUE"); } catch (e) { }
-
-  // Create user_material_stocks table
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS user_material_stocks (
-      user_id INT,
-      material_id INT,
-      stock INT DEFAULT 0,
-      PRIMARY KEY (user_id, material_id),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS warehouse_cash_flow (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      type ENUM('income', 'expense') NOT NULL,
-      amount DECIMAL(10, 2) NOT NULL,
-      date DATETIME DEFAULT CURRENT_TIMESTAMP,
-      description TEXT,
-      payment_method VARCHAR(50) DEFAULT 'cash',
-      ref_id INT DEFAULT NULL
-    )
-  `);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS vendors (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      code VARCHAR(100) NOT NULL UNIQUE,
-      name VARCHAR(255) NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS vendor_items (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      vendor_id INT,
-      name VARCHAR(255) NOT NULL,
-      material_id INT,
-      FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE SET NULL
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS warehouse_stocks (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      material_id INT,
-      stock_awal INT DEFAULT 0,
-      masuk INT DEFAULT 0,
-      terpakai INT DEFAULT 0,
-      terbuang INT DEFAULT 0,
-      terjual INT DEFAULT 0,
-      retur INT DEFAULT 0,
-      sisa_stock INT DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS vendor_stock_requests (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      material_id INT,
-      vendor_item_id INT DEFAULT NULL,
-      quantity INT,
-      price DECIMAL(10, 2) DEFAULT 0,
-      total_price DECIMAL(10, 2) DEFAULT 0,
-      payment_method VARCHAR(50) DEFAULT 'cash',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE,
-      FOREIGN KEY (vendor_item_id) REFERENCES vendor_items(id) ON DELETE SET NULL
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS offline_returns (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      material_id INT,
-      cashier_id INT,
-      quantity INT,
-      condition_status ENUM('layak', 'tidak_layak') NOT NULL,
-      added_to_input TINYINT DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE,
-      FOREIGN KEY (cashier_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `);
-
-  // Migration try-catches for existing tables
-  try {
-    await pool.query("ALTER TABLE warehouse_stocks ADD COLUMN terjual INT DEFAULT 0");
-  } catch (err) { }
-  try {
-    await pool.query("ALTER TABLE warehouse_stocks ADD COLUMN retur INT DEFAULT 0");
-  } catch (err) { }
-  try {
-    await pool.query("ALTER TABLE vendor_stock_requests ADD COLUMN vendor_item_id INT DEFAULT NULL");
-  } catch (err) { }
-  try {
-    await pool.query("ALTER TABLE vendor_stock_requests ADD FOREIGN KEY (vendor_item_id) REFERENCES vendor_items(id) ON DELETE SET NULL");
-  } catch (err) { }
-  try {
-    await pool.query("ALTER TABLE vendor_items ADD COLUMN vendor_id INT DEFAULT NULL");
-  } catch (err) { }
-  try {
-    await pool.query("ALTER TABLE vendor_items ADD FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE");
-  } catch (err) { }
-  try {
-    await pool.query("ALTER TABLE vendor_items MODIFY COLUMN vendor_code VARCHAR(100) NULL DEFAULT NULL");
-  } catch (err) { }
-  try {
-    await pool.query("ALTER TABLE vendor_items DROP COLUMN vendor_code");
-  } catch (err) { }
-
-  // Create receipt_sub_headlines table
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS receipt_sub_headlines (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      text VARCHAR(255) NOT NULL UNIQUE
-    )
-  `);
-
-  // Create receipt_settings table
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS receipt_settings (
-      id INT PRIMARY KEY,
-      headline VARCHAR(255) DEFAULT '@HD fried chicken',
-      address VARCHAR(255) DEFAULT 'Jl. Raya Utama No. 45',
-      phone VARCHAR(255) DEFAULT '0812-3456-7890',
-      footer_text VARCHAR(255) DEFAULT 'Terima Kasih atas Kunjungan Anda!'
-    )
-  `);
-
-  // Seed default receipt settings if not exists
-  await pool.query(`
-    INSERT IGNORE INTO receipt_settings (id, headline, address, phone, footer_text) 
-    VALUES (1, '@HD fried chicken', 'Jl. Raya Utama No. 45', '0812-3456-7890', 'Terima Kasih atas Kunjungan Anda!')
-  `);
-
-  // Seed default subheadline if not exists
-  await pool.query("INSERT IGNORE INTO receipt_sub_headlines (id, text) VALUES (1, 'Cabang Utama')");
-
-  // Create stock_transfers table
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS stock_transfers (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      sender_id INT,
-      receiver_id INT,
-      material_id INT,
-      quantity INT,
-      status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE
-    )
-  `);
-  try {
-    await pool.query("ALTER TABLE stock_transfers ADD COLUMN status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'");
-  } catch (err) { }
-
-  // Seed Admin if not exists
-  const [adminRows]: any = await pool.query("SELECT * FROM users WHERE username = ?", ["admin"]);
-  if (adminRows.length === 0) {
-    const hashedPassword = bcrypt.hashSync("admin123", 10);
-    await pool.query("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", ["admin", hashedPassword, "admin"]);
-  }
-
-  // Automatic Migration: Link existing transactions and expenses without a specific cashier to their sessions
-  try {
-    await pool.query(`
-      UPDATE transactions t
-      JOIN cash_registers cr ON t.created_at >= cr.opened_at 
-        AND (t.created_at <= cr.closed_at OR cr.closed_at IS NULL OR cr.status = 'open')
-      SET t.user_id = cr.cashier_id
-      WHERE t.user_id = 1 OR t.user_id IS NULL
-    `);
-    await pool.query(`
-      UPDATE expenses e
-      JOIN cash_registers cr ON e.date >= cr.opened_at 
-        AND (e.date <= cr.closed_at OR cr.closed_at IS NULL OR cr.status = 'open')
-      SET e.user_id = cr.cashier_id
-      WHERE e.user_id IS NULL
-    `);
-  } catch (e) {
-    console.error("Auto migration warning:", e);
-  }
-}
+const JWT_SECRET = process.env.JWT_SECRET || "vibepos-secret-key-2026";
 
 async function startServer() {
   try {
@@ -455,7 +24,7 @@ async function startServer() {
   }
 
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(cors());
   app.use(express.json());
@@ -563,11 +132,12 @@ async function startServer() {
   app.post("/api/products", async (req, res) => {
     const { name, price, stock, category_id, barcode } = req.body;
     try {
+      const catId = category_id === "" || category_id === null || category_id === undefined ? null : Number(category_id);
       const [result]: any = await pool.query("INSERT INTO products (name, price, stock, category_id, barcode) VALUES (?, ?, ?, ?, ?)", [
         name,
         price,
         stock === "" || stock === null ? 0 : stock,
-        category_id,
+        catId,
         barcode || null
       ]);
       res.json({ id: result.insertId });
@@ -579,11 +149,12 @@ async function startServer() {
   app.put("/api/products/:id", async (req, res) => {
     const { name, price, stock, category_id, barcode } = req.body;
     try {
+      const catId = category_id === "" || category_id === null || category_id === undefined ? null : Number(category_id);
       await pool.query("UPDATE products SET name = ?, price = ?, stock = ?, category_id = ?, barcode = ? WHERE id = ?", [
         name,
         price,
         stock === "" || stock === null ? 0 : stock,
-        category_id,
+        catId,
         barcode || null,
         req.params.id
       ]);
@@ -1237,6 +808,14 @@ async function startServer() {
         WHERE type = 'income' AND DATE(date) BETWEEN ? AND ?
       `, [startDate, endDate]);
 
+      // 1c. Total loss from broken items (from warehouse cash flow)
+      const [[lossSummary]]: any = await pool.query(`
+        SELECT 
+          SUM(amount) as totalLoss
+        FROM warehouse_cash_flow
+        WHERE type = 'loss' AND DATE(date) BETWEEN ? AND ?
+      `, [startDate, endDate]);
+
       // 2. Low stock and total materials
       const [[materialSummary]]: any = await pool.query(`
         SELECT 
@@ -1245,12 +824,13 @@ async function startServer() {
         FROM inventory_materials
       `);
 
-      // 3. Chart data: Daily cash flow trend (income & expense)
+      // 3. Chart data: Daily cash flow trend (income & expense & loss)
       const [chartData]: any = await pool.query(`
         SELECT 
           DATE(date) as date,
           SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
-          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense,
+          SUM(CASE WHEN type = 'loss' THEN amount ELSE 0 END) as loss
         FROM warehouse_cash_flow
         WHERE DATE(date) BETWEEN ? AND ?
         GROUP BY date
@@ -1315,6 +895,7 @@ async function startServer() {
         totalPurchases: Number(summary?.totalPurchases || 0),
         purchaseCount: Number(summary?.purchaseCount || 0),
         totalIncome: Number(incomeSummary?.totalIncome || 0),
+        totalLoss: Number(lossSummary?.totalLoss || 0),
         totalMaterials: Number(materialSummary?.totalMaterials || 0),
         lowStockCount: Number(materialSummary?.lowStockCount || 0),
         chartData,
@@ -2107,16 +1688,18 @@ async function startServer() {
       }
 
       for (const item of items) {
-        const { material_id, stock_awal, masuk, terpakai, terbuang, sisa_stock } = item;
+        const { material_id, stock_awal, masuk, tosser_in, tosser_out, terpakai, terbuang, sisa_stock } = item;
         await connection.query(`
-          INSERT INTO cashier_stocks (user_id, cash_register_id, material_id, stock_awal, masuk, terpakai, terbuang, sisa_stock)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO cashier_stocks (user_id, cash_register_id, material_id, stock_awal, masuk, tosser_in, tosser_out, terpakai, terbuang, sisa_stock)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           user_id,
           cash_register_id || null,
           material_id,
           stock_awal || 0,
           masuk || 0,
+          tosser_in || 0,
+          tosser_out || 0,
           terpakai || 0,
           terbuang || 0,
           sisa_stock || 0
@@ -2375,14 +1958,22 @@ async function startServer() {
   // Vendor Stock Requests (Purchases) Routes
   app.get("/api/vendor-stock-requests", async (req, res) => {
     try {
-      const [rows] = await pool.query(`
+      const { startDate, endDate } = req.query;
+      let query = `
         SELECT vs.*, vi.name as vendor_item_name, v.code as vendor_code, v.name as vendor_name, m.name as material_name, m.unit 
         FROM vendor_stock_requests vs
         LEFT JOIN vendor_items vi ON vs.vendor_item_id = vi.id
         LEFT JOIN vendors v ON vi.vendor_id = v.id
         LEFT JOIN inventory_materials m ON vs.material_id = m.id
-        ORDER BY vs.created_at DESC
-      `);
+      `;
+      const params = [];
+      if (startDate && endDate) {
+        query += ` WHERE DATE(vs.created_at) BETWEEN ? AND ? `;
+        params.push(startDate, endDate);
+      }
+      query += ` ORDER BY vs.created_at DESC `;
+      
+      const [rows] = await pool.query(query, params);
       res.json(rows);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -2510,13 +2101,26 @@ async function startServer() {
   // Offline Returns Routes
   app.get("/api/offline-returns", async (req, res) => {
     try {
-      const [rows] = await pool.query(`
+      const { startDate, endDate, user_id } = req.query;
+      let query = `
         SELECT r.*, m.name as material_name, m.unit, m.price as material_price, u.username as cashier_name 
         FROM offline_returns r
         JOIN inventory_materials m ON r.material_id = m.id
         JOIN users u ON r.cashier_id = u.id
-        ORDER BY r.created_at DESC
-      `);
+        WHERE 1=1
+      `;
+      const params = [];
+      if (startDate && endDate) {
+        query += ` AND DATE(r.created_at) BETWEEN ? AND ? `;
+        params.push(startDate, endDate);
+      }
+      if (user_id) {
+        query += ` AND r.cashier_id = ? `;
+        params.push(user_id);
+      }
+      query += ` ORDER BY r.created_at DESC `;
+      
+      const [rows] = await pool.query(query, params);
       res.json(rows);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -2563,7 +2167,7 @@ async function startServer() {
         // Log loss in warehouse cash flow
         await connection.query(`
           INSERT INTO warehouse_cash_flow (type, amount, description, payment_method, ref_id)
-          VALUES ('expense', ?, ?, 'cash', ?)
+          VALUES ('loss', ?, ?, 'cash', ?)
         `, [
           lossAmount,
           `Kerugian Barang Rusak (Offline Return): ${matName} x${quantity}`,
@@ -2654,12 +2258,24 @@ async function startServer() {
       );
       if (senderRegRows.length > 0) {
         const senderRegId = senderRegRows[0].id;
-        await connection.query(`
-          UPDATE cashier_stocks 
-          SET stock_awal = GREATEST(0, stock_awal - ?),
-              sisa_stock = GREATEST(0, sisa_stock - ?)
-          WHERE user_id = ? AND cash_register_id = ? AND material_id = ?
-        `, [quantity, quantity, sender_id, senderRegId, material_id]);
+        const [senderStockRows]: any = await connection.query(
+          "SELECT id FROM cashier_stocks WHERE user_id = ? AND cash_register_id = ? AND material_id = ?",
+          [sender_id, senderRegId, material_id]
+        );
+        if (senderStockRows.length > 0) {
+          await connection.query(`
+            UPDATE cashier_stocks 
+            SET tosser_out = tosser_out + ?,
+                sisa_stock = GREATEST(0, sisa_stock - ?)
+            WHERE user_id = ? AND cash_register_id = ? AND material_id = ?
+          `, [quantity, quantity, sender_id, senderRegId, material_id]);
+        } else {
+          // Initialize with current senderStock (which was before the transfer was completed)
+          await connection.query(`
+            INSERT INTO cashier_stocks (user_id, cash_register_id, material_id, stock_awal, masuk, tosser_in, tosser_out, terpakai, terbuang, sisa_stock)
+            VALUES (?, ?, ?, ?, 0, 0, ?, 0, 0, ?)
+          `, [sender_id, senderRegId, material_id, senderStock, quantity, senderStock - quantity]);
+        }
       }
 
       // 4. Record transfer log with status = 'pending'
@@ -2679,31 +2295,41 @@ async function startServer() {
   });
 
   app.get("/api/stock-transfers", async (req, res) => {
-    const { sender_id, receiver_id } = req.query;
+    const { sender_id, receiver_id, startDate, endDate } = req.query;
     try {
+      let query = '';
+      const params = [];
       if (sender_id) {
-        const [rows] = await pool.query(`
+        query = `
           SELECT t.id, t.created_at, t.quantity, t.status, m.name as material_name, m.unit as material_unit, u.username as receiver_name
           FROM stock_transfers t
           JOIN inventory_materials m ON t.material_id = m.id
           JOIN users u ON t.receiver_id = u.id
           WHERE t.sender_id = ?
-          ORDER BY t.created_at DESC
-        `, [sender_id]);
-        return res.json(rows);
+        `;
+        params.push(sender_id);
       } else if (receiver_id) {
-        const [rows] = await pool.query(`
+        query = `
           SELECT t.id, t.created_at, t.quantity, t.status, m.name as material_name, m.unit as material_unit, u.username as sender_name
           FROM stock_transfers t
           JOIN inventory_materials m ON t.material_id = m.id
           JOIN users u ON t.sender_id = u.id
           WHERE t.receiver_id = ?
-          ORDER BY t.created_at DESC
-        `, [receiver_id]);
-        return res.json(rows);
+        `;
+        params.push(receiver_id);
       } else {
         return res.status(400).json({ message: "sender_id atau receiver_id wajib diisi." });
       }
+
+      if (startDate && endDate) {
+        query += ` AND DATE(t.created_at) BETWEEN ? AND ? `;
+        params.push(startDate, endDate);
+      }
+
+      query += ` ORDER BY t.created_at DESC `;
+
+      const [rows] = await pool.query(query, params);
+      return res.json(rows);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -2761,10 +2387,23 @@ async function startServer() {
           if (receiverStockRows.length > 0) {
             await connection.query(`
               UPDATE cashier_stocks 
-              SET stock_awal = stock_awal + ?,
+              SET tosser_in = tosser_in + ?,
                   sisa_stock = sisa_stock + ?
               WHERE user_id = ? AND cash_register_id = ? AND material_id = ?
             `, [transfer.quantity, transfer.quantity, transfer.receiver_id, receiverRegId, transfer.material_id]);
+          } else {
+            // Get current user stock
+            const [uStockRows]: any = await connection.query(
+              "SELECT stock FROM user_material_stocks WHERE user_id = ? AND material_id = ?",
+              [transfer.receiver_id, transfer.material_id]
+            );
+            const currentStock = uStockRows[0]?.stock || 0;
+            // Before adding this transfer, the receiver's stock was (currentStock - transfer.quantity)
+            const stockAwal = Math.max(0, currentStock - transfer.quantity);
+            await connection.query(`
+              INSERT INTO cashier_stocks (user_id, cash_register_id, material_id, stock_awal, masuk, tosser_in, tosser_out, terpakai, terbuang, sisa_stock)
+              VALUES (?, ?, ?, ?, 0, ?, 0, 0, 0, ?)
+            `, [transfer.receiver_id, receiverRegId, transfer.material_id, stockAwal, transfer.quantity, currentStock]);
           }
         }
       } else if (status === 'rejected') {
@@ -2790,7 +2429,7 @@ async function startServer() {
           if (senderStockRows.length > 0) {
             await connection.query(`
               UPDATE cashier_stocks 
-              SET stock_awal = stock_awal + ?,
+              SET tosser_out = GREATEST(0, tosser_out - ?),
                   sisa_stock = sisa_stock + ?
               WHERE user_id = ? AND cash_register_id = ? AND material_id = ?
             `, [transfer.quantity, transfer.quantity, transfer.sender_id, senderRegId, transfer.material_id]);

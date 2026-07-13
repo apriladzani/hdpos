@@ -33,11 +33,25 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
   const [cashflowTab, setCashflowTab] = useState<'report' | 'settings'>('report');
   const [cashiers, setCashiers] = useState<User[]>([]);
   const [selectedCashierId, setSelectedCashierId] = useState('');
-  const [filterType, setFilterType] = useState<'day' | 'month' | 'range'>('day');
+  const [filterType, setFilterType] = useState<'day' | 'month' | 'range'>(() => {
+    return user.role === 'cashier' ? 'range' : 'day';
+  });
   const [filterDate, setFilterDate] = useState(getLocalDateString());
   const [filterMonthYear, setFilterMonthYear] = useState(getLocalDateString().substring(0, 7)); // YYYY-MM
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+    if (user.role === 'cashier') {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      return getLocalDateString(d);
+    }
+    return '';
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+    if (user.role === 'cashier') {
+      return getLocalDateString(new Date());
+    }
+    return '';
+  });
 
   const fetchData = () => {
     if (user.role === 'gudang') {
@@ -110,6 +124,7 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
 
   const totalIncome = items.filter(i => i.type === 'income').reduce((sum, i) => sum + Number(i.amount), 0);
   const totalExpense = items.filter(i => i.type === 'expense').reduce((sum, i) => sum + Number(i.amount), 0);
+  const totalLoss = items.filter(i => i.type === 'loss').reduce((sum, i) => sum + Number(i.amount), 0);
   
   const totalIncomeCash = items.filter(i => i.type === 'income' && i.payment_method === 'cash').reduce((sum, i) => sum + Number(i.amount), 0);
   const expenseCash = items.filter(i => i.type === 'expense' && i.payment_method === 'cash').reduce((sum, i) => sum + Number(i.amount), 0);
@@ -118,7 +133,7 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
   const totalTunai = totalIncomeCash - expenseCash;
   const totalQRIS = items.filter(i => i.type === 'income' && i.payment_method === 'qris').reduce((sum, i) => sum + Number(i.amount), 0);
   const totalTransfer = items.filter(i => i.type === 'income' && i.payment_method === 'transfer').reduce((sum, i) => sum + Number(i.amount), 0);
-  const balance = totalIncome - totalExpense;
+  const balance = totalIncome - totalExpense - totalLoss;
 
   const handleExpenseItemChange = (itemId: string) => {
     setSelectedExpenseItem(itemId);
@@ -306,20 +321,24 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
                   </select>
                 )}
 
-                <select 
-                  value={filterType} 
-                  onChange={e => setFilterType(e.target.value as any)}
-                  className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="day">Filter Harian</option>
-                  <option value="month">Filter Bulanan</option>
-                  <option value="range">Rentang Tanggal</option>
-                </select>
+                {user.role !== 'cashier' && (
+                  <>
+                    <select 
+                      value={filterType} 
+                      onChange={e => setFilterType(e.target.value as any)}
+                      className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="day">Filter Harian</option>
+                      <option value="month">Filter Bulanan</option>
+                      <option value="range">Rentang Tanggal</option>
+                    </select>
 
-                <div className="flex bg-slate-50 border border-slate-200 rounded-xl p-1">
-                  <button onClick={() => setQuickFilter(0)} className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white/50 text-slate-600 hover:text-slate-955 transition-all">Hari Ini</button>
-                  <button onClick={() => setQuickFilter(1)} className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white/50 text-slate-600 hover:text-slate-955 transition-all">Hari Esok</button>
-                </div>
+                    <div className="flex bg-slate-50 border border-slate-200 rounded-xl p-1">
+                      <button onClick={() => setQuickFilter(0)} className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white/50 text-slate-600 hover:text-slate-955 transition-all">Hari Ini</button>
+                      <button onClick={() => setQuickFilter(1)} className="px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-white/50 text-slate-600 hover:text-slate-955 transition-all">Hari Esok</button>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -398,6 +417,15 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
               </div>
               <h3 className="text-lg font-black text-rose-900">{formatCurrency(totalExpense)}</h3>
             </Card>
+            {user.role === 'gudang' && (
+              <Card className="bg-amber-50 border-amber-100 p-4">
+                <div className="flex items-center gap-2 text-amber-600 mb-2">
+                  <AlertCircle size={16} />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Total Kerugian</span>
+                </div>
+                <h3 className="text-lg font-black text-amber-700">{formatCurrency(totalLoss)}</h3>
+              </Card>
+            )}
             {mode !== 'expenses' && (
               <>
                 <Card className="bg-indigo-600 border-indigo-700 p-4">
@@ -466,9 +494,13 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
                         <td className="px-6 py-4">
                           <span className={cn(
                             "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                            item.type === 'income' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
+                            item.type === 'income'
+                              ? "bg-emerald-100 text-emerald-600"
+                              : item.type === 'loss'
+                                ? "bg-amber-100 text-amber-600"
+                                : "bg-rose-100 text-rose-600"
                           )}>
-                            {item.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}
+                            {item.type === 'income' ? 'Pemasukan' : item.type === 'loss' ? 'Kerugian' : 'Pengeluaran'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
