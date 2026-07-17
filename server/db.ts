@@ -431,6 +431,7 @@ export async function initDb() {
       UPDATE transactions t
       JOIN cash_registers cr ON t.created_at >= cr.opened_at 
         AND (t.created_at <= cr.closed_at OR cr.closed_at IS NULL OR cr.status = 'open')
+      JOIN users u ON cr.cashier_id = u.id
       SET t.user_id = cr.cashier_id
       WHERE t.user_id = 1 OR t.user_id IS NULL
     `);
@@ -438,6 +439,7 @@ export async function initDb() {
       UPDATE expenses e
       JOIN cash_registers cr ON e.date >= cr.opened_at 
         AND (e.date <= cr.closed_at OR cr.closed_at IS NULL OR cr.status = 'open')
+      JOIN users u ON cr.cashier_id = u.id
       SET e.user_id = cr.cashier_id
       WHERE e.user_id IS NULL
     `);

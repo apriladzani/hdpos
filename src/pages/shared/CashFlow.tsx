@@ -8,9 +8,10 @@ import {
   ArrowDownLeft, 
   Wallet, 
   CreditCard, 
-  AlertCircle 
+  AlertCircle,
+  Percent
 } from 'lucide-react';
-import { cn, formatCurrency, getLocalDateString } from '../../lib/utils';
+import { cn, formatCurrency, getLocalDateString, formatTransactionDate } from '../../lib/utils';
 import { api } from '../../lib/api';
 import { Card } from '../../components/Card';
 import { User, CashFlowItem } from '../../types';
@@ -134,6 +135,10 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
   const totalQRIS = items.filter(i => i.type === 'income' && i.payment_method === 'qris').reduce((sum, i) => sum + Number(i.amount), 0);
   const totalTransfer = items.filter(i => i.type === 'income' && i.payment_method === 'transfer').reduce((sum, i) => sum + Number(i.amount), 0);
   const balance = totalIncome - totalExpense - totalLoss;
+
+  const totalDiscountExpense = items
+    .filter(i => i.type === 'expense' && (i.description.startsWith('Diskon Produk:') || i.description.startsWith('Diskon Penjualan')))
+    .reduce((sum, i) => sum + Number(i.amount), 0);
 
   const handleExpenseItemChange = (itemId: string) => {
     setSelectedExpenseItem(itemId);
@@ -387,36 +392,82 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {mode !== 'expenses' && (
-              <Card className="bg-emerald-50 border-emerald-100 p-4">
-                <div className="flex items-center gap-2 text-emerald-600 mb-2">
-                  <ArrowUpRight size={16} />
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Pemasukan</span>
-                </div>
-                <h3 className="text-lg font-black text-emerald-700">{formatCurrency(totalIncome)}</h3>
-              </Card>
+            {mode === 'expenses' ? (
+              <>
+                <Card className="bg-rose-100 border-rose-200 p-4">
+                  <div className="flex items-center gap-2 text-rose-800 mb-2">
+                    <ArrowDownLeft size={16} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Total Pengeluaran</span>
+                  </div>
+                  <h3 className="text-lg font-black text-rose-900">{formatCurrency(totalExpense)}</h3>
+                </Card>
+                <Card className="bg-rose-50 border-rose-100 p-4">
+                  <div className="flex items-center gap-2 text-rose-600 mb-2">
+                    <ArrowDownLeft size={16} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Pengeluaran Cash</span>
+                  </div>
+                  <h3 className="text-lg font-black text-rose-700">{formatCurrency(expenseCash)}</h3>
+                </Card>
+                <Card className="bg-rose-50 border-rose-100 p-4">
+                  <div className="flex items-center gap-2 text-rose-600 mb-2">
+                    <ArrowDownLeft size={16} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Pengeluaran Transfer</span>
+                  </div>
+                  <h3 className="text-lg font-black text-rose-700">{formatCurrency(expenseTransfer)}</h3>
+                </Card>
+                <Card className="bg-amber-50 border-amber-100 p-4">
+                  <div className="flex items-center gap-2 text-amber-600 mb-2">
+                    <Percent size={16} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Pengeluaran Diskon</span>
+                  </div>
+                  <h3 className="text-lg font-black text-amber-700">{formatCurrency(totalDiscountExpense)}</h3>
+                </Card>
+              </>
+            ) : (
+              <>
+                <Card className="bg-emerald-50 border-emerald-100 p-4">
+                  <div className="flex items-center gap-2 text-emerald-600 mb-2">
+                    <ArrowUpRight size={16} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Pemasukan</span>
+                  </div>
+                  <h3 className="text-lg font-black text-emerald-700">{formatCurrency(totalIncome)}</h3>
+                </Card>
+                {user.role !== 'cashier' && (
+                  <>
+                    <Card className="bg-rose-50 border-rose-100 p-4">
+                      <div className="flex items-center gap-2 text-rose-600 mb-2">
+                        <ArrowDownLeft size={16} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Pengeluaran Cash</span>
+                      </div>
+                      <h3 className="text-lg font-black text-rose-700">{formatCurrency(expenseCash)}</h3>
+                    </Card>
+                    <Card className="bg-rose-50 border-rose-100 p-4">
+                      <div className="flex items-center gap-2 text-rose-600 mb-2">
+                        <ArrowDownLeft size={16} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Pengeluaran Transfer</span>
+                      </div>
+                      <h3 className="text-lg font-black text-rose-700">{formatCurrency(expenseTransfer)}</h3>
+                    </Card>
+                  </>
+                )}
+                <Card className="bg-rose-100 border-rose-200 p-4">
+                  <div className="flex items-center gap-2 text-rose-800 mb-2">
+                    <ArrowDownLeft size={16} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Total Pengeluaran</span>
+                  </div>
+                  <h3 className="text-lg font-black text-rose-900">{formatCurrency(totalExpense)}</h3>
+                </Card>
+                {user.role === 'cashier' && (
+                  <Card className="bg-amber-50 border-amber-100 p-4">
+                    <div className="flex items-center gap-2 text-amber-600 mb-2">
+                      <Percent size={16} />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Total Diskon</span>
+                    </div>
+                    <h3 className="text-lg font-black text-amber-700">{formatCurrency(totalDiscountExpense)}</h3>
+                  </Card>
+                )}
+              </>
             )}
-            <Card className="bg-rose-50 border-rose-100 p-4">
-              <div className="flex items-center gap-2 text-rose-600 mb-2">
-                <ArrowDownLeft size={16} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Pengeluaran Cash</span>
-              </div>
-              <h3 className="text-lg font-black text-rose-700">{formatCurrency(expenseCash)}</h3>
-            </Card>
-            <Card className="bg-rose-50 border-rose-100 p-4">
-              <div className="flex items-center gap-2 text-rose-600 mb-2">
-                <ArrowDownLeft size={16} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Pengeluaran Transfer</span>
-              </div>
-              <h3 className="text-lg font-black text-rose-700">{formatCurrency(expenseTransfer)}</h3>
-            </Card>
-            <Card className="bg-rose-100 border-rose-200 p-4">
-              <div className="flex items-center gap-2 text-rose-800 mb-2">
-                <ArrowDownLeft size={16} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Total Pengeluaran</span>
-              </div>
-              <h3 className="text-lg font-black text-rose-900">{formatCurrency(totalExpense)}</h3>
-            </Card>
             {user.role === 'gudang' && (
               <Card className="bg-amber-50 border-amber-100 p-4">
                 <div className="flex items-center gap-2 text-amber-600 mb-2">
@@ -488,7 +539,7 @@ export const CashFlow = ({ user, mode }: { user: User; mode?: 'cashflow' | 'expe
                     return displayedItems.map((item, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                          {new Date(item.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {formatTransactionDate(item.date)}
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-slate-900">{item.description}</td>
                         <td className="px-6 py-4">

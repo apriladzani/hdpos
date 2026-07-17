@@ -167,10 +167,10 @@ export const Dashboard = ({ user }: { user: User }) => {
 
   const filteredBestSellers = performance?.bestSellers
     ? (user.role === 'gudang'
-        ? (activeCategory === 'all'
-            ? performance.bestSellers
-            : performance.bestSellers.filter((p: any) => p.category_id === activeCategory))
-        : performance.bestSellers)
+      ? (activeCategory === 'all'
+        ? performance.bestSellers
+        : performance.bestSellers.filter((p: any) => p.category_id === activeCategory))
+      : performance.bestSellers)
     : [];
 
   return (
@@ -299,7 +299,7 @@ export const Dashboard = ({ user }: { user: User }) => {
               />
               <StatCard
                 label="Total Pengeluaran"
-                value={formatCurrency(Number(performance.totalExpenses || 0) + Number(performance.totalPromo || 0))}
+                value={formatCurrency(Number(performance.totalExpenses || 0))}
                 icon={TrendingDown}
                 color="bg-rose-500"
               />
@@ -386,6 +386,8 @@ export const Dashboard = ({ user }: { user: User }) => {
                             <tr className="border-b border-slate-100 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
                               <th className="pb-2">Bahan</th>
                               <th className="pb-2 text-center">Awal</th>
+                              <th className="pb-2 text-center text-emerald-600">Toser In</th>
+                              <th className="pb-2 text-center text-rose-600">Toser Out</th>
                               <th className="pb-2 text-center">Jual</th>
                               <th className="pb-2 text-center">Retur</th>
                               <th className="pb-2 text-center">Akhir</th>
@@ -396,6 +398,8 @@ export const Dashboard = ({ user }: { user: User }) => {
                               <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                                 <td className="py-2.5 font-bold text-slate-800">{stock.material_name}</td>
                                 <td className="py-2.5 text-center font-bold text-slate-500">{stock.stock_awal}</td>
+                                <td className="py-2.5 text-center font-bold text-emerald-600">{stock.tosser_in || 0}</td>
+                                <td className="py-2.5 text-center font-bold text-rose-600">{stock.tosser_out || 0}</td>
                                 <td className="py-2.5 text-center font-bold text-amber-600">{stock.terjual}</td>
                                 <td className="py-2.5 text-center font-bold text-rose-500">{stock.retur}</td>
                                 <td className="py-2.5 text-center font-bold text-indigo-600">{stock.stock_akhir}</td>
@@ -476,7 +480,7 @@ export const Dashboard = ({ user }: { user: User }) => {
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
-                     <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1} />
                       <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
                     </linearGradient>

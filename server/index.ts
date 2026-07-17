@@ -307,6 +307,31 @@ async function startServer() {
             : Math.max(0, item.price - (item.discount_value || 0)))
           : item.price;
         subtotal += (priceAfterDiscount * item.quantity);
+
+        // Record product discount as expense
+        let itemDiscountUnit = 0;
+        if (hasDiscount) {
+          if (item.discount_type === 'percent') {
+            itemDiscountUnit = (item.price * (item.discount_value || 0)) / 100;
+          } else if (item.discount_type === 'fixed') {
+            itemDiscountUnit = item.discount_value || 0;
+          }
+        }
+        const itemDiscountTotal = itemDiscountUnit * item.quantity;
+
+        if (itemDiscountTotal > 0) {
+          await connection.query(`
+            INSERT INTO expenses (description, amount, quantity, price, user_id, payment_method) 
+            VALUES (?, ?, ?, ?, ?, ?)
+          `, [
+            `Diskon Produk: ${item.name || 'Produk'} (#ORD-${1000 + Number(transactionId)})`,
+            itemDiscountTotal,
+            item.quantity,
+            itemDiscountUnit,
+            user_id || 1,
+            payment_method || 'cash'
+          ]);
+        }
       }
 
       // Calculate and record discount as expense
@@ -682,6 +707,8 @@ async function startServer() {
             SELECT 
               m.name as material_name,
               cs.stock_awal,
+              cs.tosser_in,
+              cs.tosser_out,
               cs.terpakai as terjual,
               cs.terbuang as retur,
               cs.sisa_stock as stock_akhir,
@@ -709,6 +736,8 @@ async function startServer() {
             groupedByDate[dateStr] = targetMaterials.map(matName => ({
               material_name: matName === 'Saus Oil' ? 'Chili Oil' : matName,
               stock_awal: 0,
+              tosser_in: 0,
+              tosser_out: 0,
               terjual: 0,
               retur: 0,
               stock_akhir: 0
@@ -721,6 +750,8 @@ async function startServer() {
               groupedByDate[dateStr] = targetMaterials.map(matName => ({
                 material_name: matName === 'Saus Oil' ? 'Chili Oil' : matName,
                 stock_awal: 0,
+                tosser_in: 0,
+                tosser_out: 0,
                 terjual: 0,
                 retur: 0,
                 stock_akhir: 0
@@ -734,6 +765,8 @@ async function startServer() {
             });
             if (item) {
               item.stock_awal = row.stock_awal || 0;
+              item.tosser_in = row.tosser_in || 0;
+              item.tosser_out = row.tosser_out || 0;
               item.terjual = row.terjual || 0;
               item.retur = row.retur || 0;
               item.stock_akhir = row.stock_akhir || 0;

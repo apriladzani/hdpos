@@ -354,7 +354,6 @@ export const POS = ({ user, activeRegister, fetchActiveRegister }: { user: User,
                 <p className={PRICE_CLASS}>{formatCurrency(product.price)}</p>
               </div>
               <div className={FOOTER_CLASS}>
-                <p className={STOCK_CLASS}>Stok: <span className="font-bold text-slate-600">{product.stock}</span></p>
                 <span className={ADD_BTN_CLASS}>+ Add</span>
               </div>
             </button>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Printer } from 'lucide-react';
-import { cn, formatCurrency } from '../../lib/utils';
+import { cn, formatCurrency, formatTransactionDate } from '../../lib/utils';
 import { api } from '../../lib/api';
 import { Card } from '../../components/Card';
 import { ReceiptModal } from '../../components/ReceiptModal';
@@ -171,7 +171,7 @@ export const HistoryPage = ({ user }: { user: User }) => {
               <div>
                 <h3 className="font-bold text-slate-900 text-lg">{group.session.cashier_name}</h3>
                 <p className="text-sm text-slate-500 font-medium">
-                  {new Date(group.session.opened_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} | {new Date(group.session.opened_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} - {group.session.closed_at ? new Date(group.session.closed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Sekarang'}
+                  Buka: {formatTransactionDate(group.session.opened_at)} | Tutup: {group.session.closed_at ? formatTransactionDate(group.session.closed_at) : 'Sekarang'}
                 </p>
               </div>
               <div className="mt-2 md:mt-0 px-4 py-2 bg-white rounded-xl shadow-sm text-sm font-bold text-slate-700 flex justify-between md:block">
@@ -197,7 +197,7 @@ export const HistoryPage = ({ user }: { user: User }) => {
                       {group.transactions.map((t: any) => (
                         <tr key={t.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-6 py-4 font-bold text-slate-900">#ORD-{1000 + t.id}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500">{new Date(t.created_at).toLocaleTimeString('id-ID')}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{formatTransactionDate(t.created_at)}</td>
                           <td className="px-6 py-4">
                             <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest">
                               {t.payment_method}

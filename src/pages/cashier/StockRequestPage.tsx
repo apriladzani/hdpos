@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertCircle, Trash2, Calendar, Save } from 'lucide-react';
-import { cn, formatCurrency } from '../../lib/utils';
+import { cn, formatCurrency, formatTransactionDate } from '../../lib/utils';
 import { api } from '../../lib/api';
 import { Card } from '../../components/Card';
 import { User, InventoryMaterial } from '../../types';
@@ -298,8 +298,8 @@ export const StockRequestPage = ({
   const subtitle = mode === 'request'
     ? 'Ajukan permintaan stok baru.'
     : mode === 'input'
-    ? 'Isi stok harian Anda.'
-    : 'Isi stok harian Anda dan ajukan permintaan stok baru.';
+      ? 'Isi stok harian Anda.'
+      : 'Isi stok harian Anda dan ajukan permintaan stok baru.';
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 w-full">
@@ -653,7 +653,7 @@ export const StockRequestPage = ({
                   <tbody className="divide-y divide-slate-100">
                     {requests.map(r => (
                       <tr key={r.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 text-sm text-slate-500">{new Date(r.created_at).toLocaleDateString('id-ID')}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">{formatTransactionDate(r.created_at)}</td>
                         <td className="px-6 py-4 font-bold text-slate-900">{r.material_name}</td>
                         <td className="px-6 py-4 text-slate-600">
                           {r.status === 'approved' ? (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle2, Printer } from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, formatTransactionDate } from '../lib/utils';
 import { api } from '../lib/api';
 
 export const ReceiptModal = ({ transaction, onClose }: { transaction: any, onClose: () => void }) => {
@@ -46,7 +46,7 @@ export const ReceiptModal = ({ transaction, onClose }: { transaction: any, onClo
             <p className="text-sm font-semibold text-slate-700">{localStorage.getItem('receipt_sub_headline') || 'Cabang Utama'}</p>
             <p className="text-xs text-slate-500 font-medium">{address} • Telp: {phone}</p>
             <div className="h-2"></div>
-            <p className="text-[10px] text-slate-500 font-medium">#{1000 + transaction.id} • {new Date(transaction.date).toLocaleString('id-ID')}</p>
+            <p className="text-[10px] text-slate-500 font-medium">#{1000 + transaction.id} • {formatTransactionDate(transaction.date)}</p>
             <p className="text-[10px] text-slate-400">Kasir: {transaction.cashier_name || 'Admin'}</p>
           </div>
 

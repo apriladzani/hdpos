@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Printer } from 'lucide-react';
-import { cn, formatCurrency } from '../../lib/utils';
+import { cn, formatCurrency, formatTransactionDate } from '../../lib/utils';
 import { api } from '../../lib/api';
 import { Card } from '../../components/Card';
 import { User } from '../../types';
@@ -132,10 +132,10 @@ export const RegisterHistory = ({ user }: { user: User }) => {
                 <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 text-sm font-bold text-slate-900">{item.cashier_name}</td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                    {new Date(item.opened_at).toLocaleString('id-ID')}
+                    {formatTransactionDate(item.opened_at)}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                    {item.closed_at ? new Date(item.closed_at).toLocaleString('id-ID') : '-'}
+                    {item.closed_at ? formatTransactionDate(item.closed_at) : '-'}
                   </td>
                   <td className="px-6 py-4 text-sm font-bold text-slate-900">
                     {formatCurrency(item.opening_balance)}
@@ -181,7 +181,7 @@ export const RegisterHistory = ({ user }: { user: User }) => {
             >
               <div className="text-center mb-6 border-b-2 border-slate-900 pb-6">
                 <h2 className="text-2xl font-black text-slate-900 uppercase tracking-widest">Ringkasan Kasir</h2>
-                <p className="text-slate-500 mt-2">{new Date(summaryData.register.opened_at).toLocaleString('id-ID')} - {summaryData.register.closed_at ? new Date(summaryData.register.closed_at).toLocaleString('id-ID') : 'Sekarang'}</p>
+                <p className="text-slate-500 mt-2">{formatTransactionDate(summaryData.register.opened_at)} - {summaryData.register.closed_at ? formatTransactionDate(summaryData.register.closed_at) : 'Sekarang'}</p>
               </div>
 
               <div className="space-y-4 mb-8">
